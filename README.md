@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NextFlow — LLM Workflow Builder
+
+A Galaxy.ai-inspired workflow builder focused on LLM pipelines. Build visual DAG workflows with image processing and Gemini AI nodes.
+
+## Tech Stack
+
+- **Next.js 16** (App Router) + TypeScript (strict)
+- **React Flow** (`@xyflow/react`) for the canvas
+- **Clerk** for authentication
+- **PostgreSQL** (Neon) + **Prisma** for persistence
+- **Trigger.dev** for node execution (Crop Image, Gemini)
+- **Google Gemini** (`@google/generative-ai`) for LLM
+- **Transloadit** for image uploads
+- **FFmpeg** for image cropping
+- **Zustand** for canvas state, **Zod** for validation
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone and install
+
+```bash
+npm install
+```
+
+### 2. Configure environment
+
+Copy `.env.example` to `.env.local` and fill in all values:
+
+```bash
+cp .env.example .env.local
+```
+
+| Variable | Source |
+|---|---|
+| `DATABASE_URL` | [Neon](https://neon.tech) |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | [Clerk](https://clerk.com) |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | [Google AI Studio](https://aistudio.google.com) |
+| `TRIGGER_SECRET_KEY` / `TRIGGER_PROJECT_REF` | [Trigger.dev](https://trigger.dev) |
+| `TRANSLOADIT_AUTH_KEY` / `TRANSLOADIT_AUTH_SECRET` | [Transloadit](https://transloadit.com) |
+| `NEXT_PUBLIC_CANDIDATE_LINKEDIN` | Your LinkedIn profile URL |
+
+### 3. Set up the database
+
+```bash
+npm run db:push
+```
+
+### 4. Run Trigger.dev (separate terminal)
+
+```bash
+npm run trigger:dev
+```
+
+### 5. Start the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) — unauthenticated users are redirected to Clerk sign-in.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Description |
+|---|---|
+| `/sign-in` | Clerk sign-in |
+| `/sign-up` | Clerk sign-up |
+| `/dashboard` | Workflow list (CRUD) |
+| `/workflow/[id]` | Workflow canvas |
 
-## Learn More
+## Node Types
 
-To learn more about Next.js, take a look at the following resources:
+| Node | Executable | Description |
+|---|---|---|
+| **Request Inputs** | No | Configurable text/image input fields |
+| **Crop Image** | Yes (Trigger.dev + FFmpeg, 30s+ delay) | Crop images by percentage |
+| **Gemini 3.1 Pro** | Yes (Trigger.dev + Gemini API) | LLM text/vision generation |
+| **Response** | No | Collects final workflow output |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Sample Workflow
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Click **Sample Workflow** on the dashboard to create the pre-built marketing pipeline:
 
-## Deploy on Vercel
+```
+Request Inputs
+├── Crop Image #1
+├── Crop Image #2
+└── Gemini #1 → Gemini #2
+                    ↓
+Crop #1 + Crop #2 + Gemini #2 → Final Gemini → Response
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Execution Modes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Run All** — Full DAG execution with parallel independent nodes
+- **Run Selected** — Single or multi-select node execution
+- **History sidebar** — Run-level and node-level execution details
+
+## Scripts
+
+```bash
+npm run dev          # Start Next.js dev server
+npm run build        # Production build
+npm run trigger:dev  # Start Trigger.dev worker
+npm run db:push      # Push Prisma schema to database
+npm run db:studio    # Open Prisma Studio
+```
+
+## Deployment (Vercel)
+
+1. Push to GitHub (grant access to `bluerocketinfo@gmail.com`)
+2. Import project in [Vercel](https://vercel.com)
+3. Add all environment variables from `.env.example`
+4. Connect Trigger.dev via Vercel integration or deploy tasks with `npx trigger.dev@latest deploy`
+5. Ensure FFmpeg is available in the Trigger.dev runtime for crop tasks
+
+## Requirements
+
+- **FFmpeg** must be installed on the Trigger.dev worker machine for Crop Image nodes
+- Crop Image intentionally waits **30+ seconds** before returning output
+- Console log on page load: `[NextFlow] Candidate LinkedIn: <url>`
+# next-flow
