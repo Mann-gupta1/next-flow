@@ -59,36 +59,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) — unauthenticated users are redirected to Clerk sign-in.
 
-## Pages
-
-| Route | Description |
-|---|---|
-| `/sign-in` | Clerk sign-in |
-| `/sign-up` | Clerk sign-up |
-| `/dashboard` | Workflow list (CRUD) |
-| `/workflow/[id]` | Workflow canvas |
-
-## Node Types
-
-| Node | Executable | Description |
-|---|---|---|
-| **Request Inputs** | No | Configurable text/image input fields |
-| **Crop Image** | Yes (Trigger.dev + FFmpeg, 30s+ delay) | Crop images by percentage |
-| **Gemini 3.1 Pro** | Yes (Trigger.dev + Gemini API) | LLM text/vision generation |
-| **Response** | No | Collects final workflow output |
-
-## Sample Workflow
-
-Click **Sample Workflow** on the dashboard to create the pre-built marketing pipeline:
-
-```
-Request Inputs
-├── Crop Image #1
-├── Crop Image #2
-└── Gemini #1 → Gemini #2
-                    ↓
-Crop #1 + Crop #2 + Gemini #2 → Final Gemini → Response
-```
 
 ## Execution Modes
 
