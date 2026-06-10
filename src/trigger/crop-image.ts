@@ -21,8 +21,6 @@ export async function cropImageTaskRunner(payload: any) {
   const parsed = cropImagePayloadSchema.parse(payload);
   const { imageUrl, positionX, positionY, width, height } = parsed;
 
-  // Mandatory 30+ second delay before processing
-  await new Promise((resolve) => setTimeout(resolve, 31000));
 
   const tempDir = await mkdtemp(join(tmpdir(), "nextflow-crop-"));
   const inputPath = join(tempDir, "input.jpg");
