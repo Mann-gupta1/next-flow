@@ -56,6 +56,8 @@ function getNodeOutputSummary(exec: NodeExecution): string {
 
   switch (exec.nodeType) {
     case "request-inputs": {
+      if (exec.status === "RUNNING") return "loading inputs...";
+      if (exec.status === "PENDING") return "queued...";
       const keys = Object.keys(outputs);
       if (keys.length > 0) {
         return keys.join(", ");
@@ -69,6 +71,8 @@ function getNodeOutputSummary(exec: NodeExecution): string {
       return "text_field, image_field";
     }
     case "crop-image": {
+      if (exec.status === "RUNNING") return "cropping image...";
+      if (exec.status === "PENDING") return "queued...";
       const img = outputs["output-image"] || outputs["imageUrl"] || "";
       if (typeof img === "string" && img) {
         if (img.startsWith("data:")) {
@@ -82,6 +86,8 @@ function getNodeOutputSummary(exec: NodeExecution): string {
       return "image cropped";
     }
     case "gemini": {
+      if (exec.status === "RUNNING") return "generating response...";
+      if (exec.status === "PENDING") return "queued...";
       const resp = outputs["response"] || "";
       if (typeof resp === "string" && resp) {
         return `"${resp.slice(0, 28)}${resp.length > 28 ? "..." : ""}"`;
@@ -89,6 +95,8 @@ function getNodeOutputSummary(exec: NodeExecution): string {
       return "response captured";
     }
     case "response": {
+      if (exec.status === "RUNNING") return "waiting for inputs...";
+      if (exec.status === "PENDING") return "queued...";
       const resVal = outputs["result"] || "";
       if (typeof resVal === "string" && resVal) {
         return `"${resVal.slice(0, 28)}${resVal.length > 28 ? "..." : ""}"`;

@@ -1,7 +1,7 @@
 import { tasks, runs } from "@trigger.dev/sdk/v3";
 import type { Edge, Node } from "@xyflow/react";
-import type { cropImageTask } from "@/trigger/crop-image";
-import type { geminiTask } from "@/trigger/gemini";
+import { cropImageTaskRunner } from "@/trigger/crop-image";
+import { geminiTaskRunner } from "@/trigger/gemini";
 import { prisma } from "@/lib/prisma";
 import type { RunScope, RunStatus } from "@/generated/prisma/client";
 import type { WorkflowNodeData } from "../types";
@@ -15,22 +15,45 @@ import {
 } from "./resolver";
 
 async function executeTaskAndPoll(taskName: string, payload: any) {
-  const handle = await tasks.trigger(taskName, payload);
-  while (true) {
-    const run = await runs.retrieve(handle.id);
-    const status = run.status as string;
-    if (status === "COMPLETED" || status === "SUCCESS") {
-      return run.output;
+  try {
+    const handle = await tasks.trigger(taskName, payload);
+    let attempts = 0;
+    while (true) {
+      const run = await runs.retrieve(handle.id);
+      const status = run.status as string;
+      if (status === "COMPLETED" || status === "SUCCESS") {
+        return run.output;
+      }
+      if (
+        status === "FAILED" ||
+        status === "CANCELED" ||
+        status === "CRASHED" ||
+        status === "SYSTEM_FAILURE"
+      ) {
+        throw new Error((run as any).error?.message || `Task execution failed with status: ${run.status}`);
+      }
+      
+      // If the task remains queued/pending for ~4.5 seconds (3 checks),
+      // we assume there's no worker active and fall back to local direct execution.
+      if ((status === "QUEUED" || status === "PENDING" || status === "WILL_PLAY" || status === "WAITING_FOR_DEPLOY") && attempts >= 3) {
+        console.warn(`No Trigger.dev worker active for ${taskName}. Falling back to direct local execution.`);
+        break;
+      }
+      
+      attempts++;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
     }
-    if (
-      status === "FAILED" ||
-      status === "CANCELED" ||
-      status === "CRASHED" ||
-      status === "SYSTEM_FAILURE"
-    ) {
-      throw new Error((run as any).error?.message || `Task execution failed with status: ${run.status}`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  } catch (err) {
+    console.warn(`Trigger.dev call failed or timed out for ${taskName}: ${err}. Falling back to local execution.`);
+  }
+
+  // Fallback direct execution
+  if (taskName === "crop-image") {
+    return await cropImageTaskRunner(payload);
+  } else if (taskName === "gemini-execute") {
+    return await geminiTaskRunner(payload);
+  } else {
+    throw new Error(`Unknown task name: ${taskName}`);
   }
 }
 
