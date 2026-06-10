@@ -61,10 +61,24 @@ export async function geminiTaskRunner(payload: any) {
     parts.push({ inlineData: { data, mimeType } });
   }
 
-  const result = await model.generateContent(parts);
-  const response = result.response.text();
-
-  return { response };
+  try {
+    const result = await model.generateContent(parts);
+    const response = result.response.text();
+    return { response };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      message.includes("429") ||
+      message.toLowerCase().includes("quota") ||
+      message.toLowerCase().includes("rate limit") ||
+      message.toLowerCase().includes("too many requests")
+    ) {
+      throw new Error(
+        "Gemini API rate limit or free-tier quota exceeded. Please configure your own Gemini API Key using the Key icon in the top right to bypass rate limits, or wait a moment and try again."
+      );
+    }
+    throw error;
+  }
 }
 
 export const geminiTask = task({

@@ -182,18 +182,57 @@ function WorkflowCanvasInner({
           .map((exec: any) => exec.nodeId);
         setRunningNodeIds(runningIds);
 
-        // Automatically select the active run if no run is currently selected
+        // If not viewing a historical run, show live updates in the editor nodes
         if (!selectedRunId) {
-          setSelectedRunId(activeRun.id);
+          const currentNodes = useWorkflowStore.getState().nodes;
+          const updatedNodes = currentNodes.map((node) => {
+            const exec = activeRun.nodeExecutions.find(
+              (e: any) => e.nodeId === node.id
+            );
+            if (!exec) return node;
+
+            const isNodeRunning = exec.status === "RUNNING" || exec.status === "PENDING";
+            const outputs = exec.outputs || {};
+            const nodeSpecificData: any = {};
+
+            if (exec.status === "SUCCESS") {
+              if (node.type === "crop-image") {
+                nodeSpecificData.outputImage = outputs["output-image"] as string;
+              } else if (node.type === "gemini") {
+                nodeSpecificData.response = outputs.response as string;
+              } else if (node.type === "response") {
+                nodeSpecificData.result = outputs.result as string;
+              }
+            }
+
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                ...nodeSpecificData,
+                isRunning: isNodeRunning,
+                lastError: exec.status === "FAILED" ? (exec.error || "Execution failed") : undefined,
+              },
+            };
+          });
+          setNodes(updatedNodes);
         }
       } else {
         setRunningNodeIds([]);
         if (useWorkflowStore.getState().isRunning) {
           setIsRunning(false);
+          // If we just finished running, and we are in editor mode (no selectedRunId), reload final outputs
+          if (!selectedRunId && initialized.current) {
+            const workflowRes = await fetch(`/api/workflows/${workflowId}`);
+            if (workflowRes.ok) {
+              const workflow = await workflowRes.json();
+              setNodes(workflow.nodes);
+            }
+          }
         }
       }
     }
-  }, [workflowId, selectedRunId, setIsRunning, setRunningNodeIds]);
+  }, [workflowId, selectedRunId, setIsRunning, setRunningNodeIds, setNodes]);
 
   // Update canvas nodes based on selectedRunId (historical or active run)
   useEffect(() => {
@@ -622,24 +661,23 @@ function WorkflowCanvasInner({
               </div>
 
               <div className="flex-1 relative">
-                {selectedRunId && (
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50/95 backdrop-blur-md shadow-xl animate-in fade-in slide-in-from-top-4 duration-300">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                    <span className="text-xs font-semibold text-amber-800">
-                      {runs.find((r) => r.id === selectedRunId)?.status === "RUNNING" ||
-                      runs.find((r) => r.id === selectedRunId)?.status === "PENDING"
-                        ? "Viewing Active Run Execution (Read-Only)"
-                        : "Viewing Historical Run (Read-Only)"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRunId(null)}
-                      className="ml-2 px-3 py-1 bg-amber-950 text-white rounded-lg text-[11px] font-semibold hover:bg-amber-900 transition-all cursor-pointer active:scale-95"
-                    >
-                      Back to Editor
-                    </button>
-                  </div>
-                )}
+                {selectedRunId &&
+                  runs.find((r) => r.id === selectedRunId)?.status !== "RUNNING" &&
+                  runs.find((r) => r.id === selectedRunId)?.status !== "PENDING" && (
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50/95 backdrop-blur-md shadow-xl animate-in fade-in slide-in-from-top-4 duration-300">
+                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="text-xs font-semibold text-amber-800">
+                        Viewing Historical Run (Read-Only)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRunId(null)}
+                        className="ml-2 px-3 py-1 bg-amber-950 text-white rounded-lg text-[11px] font-semibold hover:bg-amber-900 transition-all cursor-pointer active:scale-95"
+                      >
+                        Back to Editor
+                      </button>
+                    </div>
+                  )}
                 <ReactFlow
                   nodes={nodes}
                   edges={edges}
