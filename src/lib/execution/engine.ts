@@ -287,9 +287,68 @@ export async function executeWorkflow(options: ExecuteOptions) {
     },
   });
 
+  // Update node data with outputs in the database
+  const updatedNodes = nodes.map((node) => {
+    const nodeOutputs = outputs[node.id];
+    if (!nodeOutputs) return node;
+
+    if (node.type === "crop-image") {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          outputImage: nodeOutputs["output-image"] as string,
+          isRunning: false,
+          lastError: undefined,
+        },
+      };
+    }
+    if (node.type === "gemini") {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          response: nodeOutputs.response as string,
+          isRunning: false,
+          lastError: undefined,
+        },
+      };
+    }
+    if (node.type === "response") {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          result: nodeOutputs.result as string,
+        },
+      };
+    }
+    return node;
+  });
+
+  // For nodes that were in the execution scope but failed, make sure we clear running and set error
+  for (const record of nodeRecords) {
+    if (record.status === "FAILED") {
+      const idx = updatedNodes.findIndex((n) => n.id === record.nodeId);
+      if (idx !== -1) {
+        updatedNodes[idx] = {
+          ...updatedNodes[idx],
+          data: {
+            ...updatedNodes[idx].data,
+            isRunning: false,
+            lastError: record.error,
+          },
+        };
+      }
+    }
+  }
+
   await prisma.workflow.update({
     where: { id: workflowId },
-    data: { status: "IDLE" },
+    data: {
+      status: "IDLE",
+      nodes: updatedNodes as object[],
+    },
   });
 
   return {

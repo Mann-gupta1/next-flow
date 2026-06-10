@@ -37,7 +37,8 @@ export async function POST(request: Request, { params }: RouteParams) {
   const edges = workflow.edges as unknown as Edge[];
 
   try {
-    const result = await executeWorkflow({
+    // Start executeWorkflow asynchronously in the background
+    executeWorkflow({
       workflowId: id,
       userId,
       nodes,
@@ -45,55 +46,13 @@ export async function POST(request: Request, { params }: RouteParams) {
       scope: parsed.data.scope,
       targetNodeIds: parsed.data.nodeIds,
       geminiApiKey: parsed.data.geminiApiKey,
+    }).catch((error) => {
+      console.error("Workflow background execution failed:", error);
     });
 
-    // Update node data with outputs
-    const updatedNodes = nodes.map((node) => {
-      const nodeOutputs = result.outputs[node.id];
-      if (!nodeOutputs) return node;
-
-      if (node.type === "crop-image") {
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            outputImage: nodeOutputs["output-image"] as string,
-            isRunning: false,
-            lastError: undefined,
-          },
-        };
-      }
-      if (node.type === "gemini") {
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            response: nodeOutputs.response as string,
-            isRunning: false,
-            lastError: undefined,
-          },
-        };
-      }
-      if (node.type === "response") {
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            result: nodeOutputs.result as string,
-          },
-        };
-      }
-      return node;
-    });
-
-    await prisma.workflow.update({
-      where: { id },
-      data: { nodes: updatedNodes as object[] },
-    });
-
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Execution failed";
+    const message = error instanceof Error ? error.message : "Execution failed to start";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -188,7 +188,7 @@ export function createBlankWorkflowNodes(): WorkflowNode[] {
             id: "field-text-1",
             name: "text_field",
             type: "text_field",
-            value: "",
+            value: "",  
           },
         ],
       },

@@ -168,12 +168,118 @@ function WorkflowCanvasInner({
     if (res.ok) {
       const data = await res.json();
       setRuns(data);
+
+      const activeRun = data.find(
+        (r: any) => r.status === "RUNNING" || r.status === "PENDING"
+      );
+
+      if (activeRun) {
+        setIsRunning(true);
+        const runningIds = activeRun.nodeExecutions
+          .filter((exec: any) => exec.status === "RUNNING" || exec.status === "PENDING")
+          .map((exec: any) => exec.nodeId);
+        setRunningNodeIds(runningIds);
+
+        const currentNodes = useWorkflowStore.getState().nodes;
+        const updatedNodes = currentNodes.map((node) => {
+          const exec = activeRun.nodeExecutions.find(
+            (e: any) => e.nodeId === node.id
+          );
+          if (!exec) return node;
+
+          const isNodeRunning = exec.status === "RUNNING" || exec.status === "PENDING";
+          const isNodeSuccess = exec.status === "SUCCESS";
+          const isNodeFailed = exec.status === "FAILED";
+
+          if (isNodeRunning) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                isRunning: true,
+                lastError: undefined,
+              },
+            };
+          }
+
+          if (isNodeSuccess) {
+            const outputs = exec.outputs || {};
+            if (node.type === "crop-image") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  outputImage: outputs["output-image"] as string,
+                  isRunning: false,
+                  lastError: undefined,
+                },
+              };
+            }
+            if (node.type === "gemini") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  response: outputs.response as string,
+                  isRunning: false,
+                  lastError: undefined,
+                },
+              };
+            }
+            if (node.type === "response") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  result: outputs.result as string,
+                },
+              };
+            }
+          }
+
+          if (isNodeFailed) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                isRunning: false,
+                lastError: exec.error || "Execution failed",
+              },
+            };
+          }
+
+          return node;
+        });
+        setNodes(updatedNodes);
+      } else {
+        setRunningNodeIds([]);
+        if (useWorkflowStore.getState().isRunning) {
+          setIsRunning(false);
+          const workflowRes = await fetch(`/api/workflows/${workflowId}`);
+          if (workflowRes.ok) {
+            const workflow = await workflowRes.json();
+            setNodes(workflow.nodes);
+          }
+        }
+      }
     }
-  }, [workflowId]);
+  }, [workflowId, setNodes, setRunningNodeIds, setIsRunning]);
 
   useEffect(() => {
     fetchRuns();
   }, [fetchRuns]);
+
+  useEffect(() => {
+    const hasRunningRun = runs.some(
+      (r) => r.status === "RUNNING" || r.status === "PENDING"
+    );
+    if (isRunning || hasRunningRun) {
+      const interval = setInterval(() => {
+        fetchRuns();
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isRunning, runs, fetchRuns]);
 
   const handleConnect = useCallback(
     (connection: Connection) => {
@@ -252,15 +358,15 @@ function WorkflowCanvasInner({
         });
 
         if (res.ok) {
-          const result = await res.json();
-          const workflowRes = await fetch(`/api/workflows/${workflowId}`);
-          if (workflowRes.ok) {
-            const workflow = await workflowRes.json();
-            setNodes(workflow.nodes);
-          }
           await fetchRuns();
+        } else {
+          setIsRunning(false);
+          setRunningNodeIds([]);
+          nodes.forEach((n) => {
+            useWorkflowStore.getState().updateNodeData(n.id, { isRunning: false });
+          });
         }
-      } finally {
+      } catch (err) {
         setIsRunning(false);
         setRunningNodeIds([]);
         nodes.forEach((n) => {
@@ -268,7 +374,7 @@ function WorkflowCanvasInner({
         });
       }
     },
-    [workflowId, nodes, setIsRunning, setRunningNodeIds, saveWorkflow, setNodes, fetchRuns]
+    [workflowId, nodes, setIsRunning, setRunningNodeIds, saveWorkflow, fetchRuns]
   );
 
   const handleRun = useCallback(() => {
@@ -510,7 +616,7 @@ function WorkflowCanvasInner({
 
         {/* Tab Contents */}
         <div className="flex-1 overflow-hidden relative p-6 bg-[#fafafa]">
-          {isRunning && <PremiumLoader />}
+          {isRunning && activeTab === "playground" && <PremiumLoader />}
           {activeTab === "workflow" && (
             <div className="w-full h-full flex flex-col rounded-2xl border border-neutral-200 bg-white overflow-hidden relative shadow-sm">
               <div className="px-6 py-4 flex items-center justify-between border-b border-neutral-200 bg-neutral-50">
