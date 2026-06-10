@@ -49,7 +49,8 @@ export const GeminiNode = memo(function GeminiNode({ id, data }: NodeProps) {
             <select
               value={nodeData.model ?? DEFAULT_GEMINI_MODEL}
               onChange={(e) => updateNodeData(id, { model: e.target.value })}
-              className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black"
+              disabled={!!nodeData.isReadOnly || isRunning}
+              className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black disabled:opacity-50"
             >
               {GEMINI_MODELS.map((m) => (
                 <option key={m.id} value={m.id} className="bg-white text-neutral-800">
@@ -66,7 +67,7 @@ export const GeminiNode = memo(function GeminiNode({ id, data }: NodeProps) {
             <textarea
               value={nodeData.prompt ?? ""}
               onChange={(e) => updateNodeData(id, { prompt: e.target.value })}
-              disabled={promptConnected}
+              disabled={promptConnected || !!nodeData.isReadOnly}
               rows={3}
               placeholder="Enter prompt..."
               className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-black resize-none"
@@ -97,7 +98,7 @@ export const GeminiNode = memo(function GeminiNode({ id, data }: NodeProps) {
                   onChange={(e) =>
                     updateNodeData(id, { systemPrompt: e.target.value })
                   }
-                  disabled={systemConnected}
+                  disabled={systemConnected || !!nodeData.isReadOnly}
                   rows={2}
                   placeholder="Optional system prompt..."
                   className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-black resize-none"
@@ -116,9 +117,9 @@ export const GeminiNode = memo(function GeminiNode({ id, data }: NodeProps) {
                       : (nodeData.imageInput ?? "")
                   }
                   onChange={(e) => updateNodeData(id, { imageInput: e.target.value })}
-                  disabled={imageConnected}
+                  disabled={imageConnected || !!nodeData.isReadOnly}
                   placeholder="Connect or enter image URL..."
-                  className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black"
+                  className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black font-sans"
                 />
               </div>
 
@@ -130,9 +131,9 @@ export const GeminiNode = memo(function GeminiNode({ id, data }: NodeProps) {
                   type="text"
                   value={nodeData.audioInput ?? ""}
                   onChange={(e) => updateNodeData(id, { audioInput: e.target.value })}
-                  disabled={audioConnected}
+                  disabled={audioConnected || !!nodeData.isReadOnly}
                   placeholder="Connect or enter audio URL..."
-                  className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black"
+                  className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black font-sans"
                 />
               </div>
 
@@ -144,9 +145,9 @@ export const GeminiNode = memo(function GeminiNode({ id, data }: NodeProps) {
                   type="text"
                   value={nodeData.fileInput ?? ""}
                   onChange={(e) => updateNodeData(id, { fileInput: e.target.value })}
-                  disabled={fileConnected}
+                  disabled={fileConnected || !!nodeData.isReadOnly}
                   placeholder="Connect or enter file URL..."
-                  className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black"
+                  className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black font-sans"
                 />
               </div>
             </div>

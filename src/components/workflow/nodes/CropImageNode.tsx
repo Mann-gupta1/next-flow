@@ -69,7 +69,7 @@ export const CropImageNode = memo(function CropImageNode({
               type="text"
               value={nodeData.inputImage ?? ""}
               onChange={(e) => updateNodeData(id, { inputImage: e.target.value })}
-              disabled={hasInputConnection}
+              disabled={hasInputConnection || !!nodeData.isReadOnly}
               placeholder="Connect or enter URL..."
               className="w-full mt-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-black"
             />
@@ -79,21 +79,25 @@ export const CropImageNode = memo(function CropImageNode({
             label="Position X"
             value={nodeData.positionX ?? 0}
             onChange={(v) => updateNodeData(id, { positionX: v })}
+            disabled={!!nodeData.isReadOnly || isRunning}
           />
           <ParamSlider
             label="Position Y"
             value={nodeData.positionY ?? 0}
             onChange={(v) => updateNodeData(id, { positionY: v })}
+            disabled={!!nodeData.isReadOnly || isRunning}
           />
           <ParamSlider
             label="Width"
             value={nodeData.width ?? 100}
             onChange={(v) => updateNodeData(id, { width: v })}
+            disabled={!!nodeData.isReadOnly || isRunning}
           />
           <ParamSlider
             label="Height"
             value={nodeData.height ?? 100}
             onChange={(v) => updateNodeData(id, { height: v })}
+            disabled={!!nodeData.isReadOnly || isRunning}
           />
 
           {nodeData.outputImage && (

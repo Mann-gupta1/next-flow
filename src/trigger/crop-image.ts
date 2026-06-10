@@ -1,5 +1,5 @@
 import { task } from "@trigger.dev/sdk/v3";
-import Jimp from "jimp";
+import { Jimp } from "jimp";
 import { cropImagePayloadSchema } from "@/lib/schemas";
 
 async function downloadImage(url: string): Promise<Buffer> {
@@ -27,10 +27,10 @@ export async function cropImageTaskRunner(payload: any) {
   const cropY = Math.round((positionY / 100) * imgHeight);
 
   // Crop the image
-  image.crop(cropX, cropY, cropW, cropH);
+  image.crop({ x: cropX, y: cropY, w: cropW, h: cropH });
 
   // Get base64 data URL
-  const dataUrl = await image.getBase64Async(Jimp.MIME_JPEG);
+  const dataUrl = await image.getBase64("image/jpeg");
 
   return {
     outputImage: dataUrl,

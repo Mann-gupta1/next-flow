@@ -98,8 +98,10 @@ function WorkflowCanvasInner({
   const [name, setName] = useState(workflowName);
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [keyModalOpen, setKeyModalOpen] = useState(false);
   const [userApiKey, setUserApiKey] = useState("");
+
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -180,90 +182,78 @@ function WorkflowCanvasInner({
           .map((exec: any) => exec.nodeId);
         setRunningNodeIds(runningIds);
 
-        const currentNodes = useWorkflowStore.getState().nodes;
-        const updatedNodes = currentNodes.map((node) => {
-          const exec = activeRun.nodeExecutions.find(
-            (e: any) => e.nodeId === node.id
-          );
-          if (!exec) return node;
-
-          const isNodeRunning = exec.status === "RUNNING" || exec.status === "PENDING";
-          const isNodeSuccess = exec.status === "SUCCESS";
-          const isNodeFailed = exec.status === "FAILED";
-
-          if (isNodeRunning) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                isRunning: true,
-                lastError: undefined,
-              },
-            };
-          }
-
-          if (isNodeSuccess) {
-            const outputs = exec.outputs || {};
-            if (node.type === "crop-image") {
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  outputImage: outputs["output-image"] as string,
-                  isRunning: false,
-                  lastError: undefined,
-                },
-              };
-            }
-            if (node.type === "gemini") {
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  response: outputs.response as string,
-                  isRunning: false,
-                  lastError: undefined,
-                },
-              };
-            }
-            if (node.type === "response") {
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  result: outputs.result as string,
-                },
-              };
-            }
-          }
-
-          if (isNodeFailed) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                isRunning: false,
-                lastError: exec.error || "Execution failed",
-              },
-            };
-          }
-
-          return node;
-        });
-        setNodes(updatedNodes);
+        // Automatically select the active run if no run is currently selected
+        if (!selectedRunId) {
+          setSelectedRunId(activeRun.id);
+        }
       } else {
         setRunningNodeIds([]);
         if (useWorkflowStore.getState().isRunning) {
           setIsRunning(false);
+        }
+      }
+    }
+  }, [workflowId, selectedRunId, setIsRunning, setRunningNodeIds]);
+
+  // Update canvas nodes based on selectedRunId (historical or active run)
+  useEffect(() => {
+    if (selectedRunId) {
+      const run = runs.find((r) => r.id === selectedRunId);
+      if (run) {
+        const currentNodes = useWorkflowStore.getState().nodes;
+        const updatedNodes = currentNodes.map((node) => {
+          const exec = run.nodeExecutions.find((e) => e.nodeId === node.id);
+          if (!exec) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                isReadOnly: true,
+              },
+            };
+          }
+
+          const isNodeRunning = exec.status === "RUNNING" || exec.status === "PENDING";
+          const outputs = exec.outputs || {};
+          const nodeSpecificData: any = {};
+
+          if (exec.status === "SUCCESS") {
+            if (node.type === "crop-image") {
+              nodeSpecificData.outputImage = outputs["output-image"] as string;
+            } else if (node.type === "gemini") {
+              nodeSpecificData.response = outputs.response as string;
+            } else if (node.type === "response") {
+              nodeSpecificData.result = outputs.result as string;
+            }
+          }
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...nodeSpecificData,
+              isReadOnly: true,
+              isRunning: isNodeRunning,
+              lastError: exec.status === "FAILED" ? (exec.error || "Execution failed") : undefined,
+            },
+          };
+        });
+        setNodes(updatedNodes);
+      }
+    } else {
+      // Fetch latest workflow nodes from DB when returning to Editor
+      if (initialized.current) {
+        const reloadWorkflowNodes = async () => {
           const workflowRes = await fetch(`/api/workflows/${workflowId}`);
           if (workflowRes.ok) {
             const workflow = await workflowRes.json();
             setNodes(workflow.nodes);
           }
-        }
+        };
+        reloadWorkflowNodes();
       }
     }
-  }, [workflowId, setNodes, setRunningNodeIds, setIsRunning]);
+  }, [selectedRunId, runs, workflowId, setNodes]);
 
   useEffect(() => {
     fetchRuns();
@@ -632,6 +622,24 @@ function WorkflowCanvasInner({
               </div>
 
               <div className="flex-1 relative">
+                {selectedRunId && (
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50/95 backdrop-blur-md shadow-xl animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="text-xs font-semibold text-amber-800">
+                      {runs.find((r) => r.id === selectedRunId)?.status === "RUNNING" ||
+                      runs.find((r) => r.id === selectedRunId)?.status === "PENDING"
+                        ? "Viewing Active Run Execution (Read-Only)"
+                        : "Viewing Historical Run (Read-Only)"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRunId(null)}
+                      className="ml-2 px-3 py-1 bg-amber-950 text-white rounded-lg text-[11px] font-semibold hover:bg-amber-900 transition-all cursor-pointer active:scale-95"
+                    >
+                      Back to Editor
+                    </button>
+                  </div>
+                )}
                 <ReactFlow
                   nodes={nodes}
                   edges={edges}
@@ -941,6 +949,8 @@ function WorkflowCanvasInner({
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         onRefresh={fetchRuns}
+        selectedRunId={selectedRunId}
+        onSelectRun={setSelectedRunId}
       />
 
       {/* API Key Modal */}

@@ -37,6 +37,8 @@ interface HistorySidebarProps {
   open: boolean;
   onClose: () => void;
   onRefresh: () => void;
+  selectedRunId: string | null;
+  onSelectRun: (runId: string | null) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -147,9 +149,9 @@ export function HistorySidebar({
   open,
   onClose,
   onRefresh,
+  selectedRunId,
+  onSelectRun,
 }: HistorySidebarProps) {
-  const [expandedRun, setExpandedRun] = useState<string | null>(null);
-
   if (!open) return null;
 
   return (
@@ -188,7 +190,7 @@ export function HistorySidebar({
           </div>
         ) : (
           runs.map((run, idx) => {
-            const isExpanded = expandedRun === run.id;
+            const isExpanded = selectedRunId === run.id;
             return (
               <div
                 key={run.id}
@@ -197,7 +199,7 @@ export function HistorySidebar({
                 <button
                   type="button"
                   onClick={() =>
-                    setExpandedRun(isExpanded ? null : run.id)
+                    onSelectRun(isExpanded ? null : run.id)
                   }
                   className="w-full flex items-center gap-3 p-3 hover:bg-neutral-50 transition-colors text-left cursor-pointer"
                 >

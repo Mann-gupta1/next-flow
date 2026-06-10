@@ -12,9 +12,11 @@ import { cn } from "@/lib/utils";
 function TransloaditUploader({
   onUpload,
   fieldId,
+  disabled,
 }: {
   onUpload: (url: string, name: string) => void;
   fieldId: string;
+  disabled?: boolean;
 }) {
   const handleUpload = useCallback(async () => {
     const input = document.createElement("input");
@@ -60,7 +62,8 @@ function TransloaditUploader({
     <button
       type="button"
       onClick={handleUpload}
-      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-dashed border-neutral-200 text-xs text-neutral-500 hover:border-black hover:text-black transition-colors cursor-pointer"
+      disabled={disabled}
+      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-dashed border-neutral-200 text-xs text-neutral-500 hover:border-black hover:text-black transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
       data-field={fieldId}
     >
       <Upload className="w-3.5 h-3.5" />
@@ -118,9 +121,10 @@ export const RequestInputsNode = memo(function RequestInputsNode({
                   type="text"
                   value={field.name}
                   onChange={(e) => updateField(field.id, { name: e.target.value })}
-                  className="flex-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs text-neutral-800 focus:outline-none focus:border-black"
+                  disabled={!!nodeData.isReadOnly}
+                  className="flex-1 bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs text-neutral-800 focus:outline-none focus:border-black disabled:opacity-50"
                 />
-                {nodeData.fields.length > 1 && (
+                {nodeData.fields.length > 1 && !nodeData.isReadOnly && (
                   <button
                     type="button"
                     onClick={() => removeField(field.id)}
@@ -135,9 +139,10 @@ export const RequestInputsNode = memo(function RequestInputsNode({
                 <textarea
                   value={field.value ?? ""}
                   onChange={(e) => updateField(field.id, { value: e.target.value })}
+                  disabled={!!nodeData.isReadOnly}
                   rows={3}
                   placeholder="Enter text..."
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-black resize-none"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-black resize-none disabled:opacity-50"
                 />
               ) : (
                 <div className="space-y-2">
@@ -148,19 +153,22 @@ export const RequestInputsNode = memo(function RequestInputsNode({
                         alt={field.imageName ?? "Preview"}
                         className="w-full h-24 object-cover"
                       />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateField(field.id, { imageUrl: "", imageName: "" })
-                        }
-                        className="absolute top-1 right-1 p-1 bg-black/80 rounded text-white/80 hover:text-white hover:bg-black cursor-pointer"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {!nodeData.isReadOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateField(field.id, { imageUrl: "", imageName: "" })
+                          }
+                          className="absolute top-1 right-1 p-1 bg-black/80 rounded text-white/80 hover:text-white hover:bg-black cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <TransloaditUploader
                       fieldId={field.id}
+                      disabled={!!nodeData.isReadOnly}
                       onUpload={(url, name) =>
                         updateField(field.id, { imageUrl: url, imageName: name })
                       }
@@ -171,14 +179,16 @@ export const RequestInputsNode = memo(function RequestInputsNode({
             </div>
           ))}
 
-          <button
-            type="button"
-            onClick={addField}
-            className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black transition-colors font-medium cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add field
-          </button>
+          {!nodeData.isReadOnly && (
+            <button
+              type="button"
+              onClick={addField}
+              className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black transition-colors font-medium cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add field
+            </button>
+          )}
         </div>
       </NodeShell>
 
